@@ -1,0 +1,20 @@
+# agent_router_sft 依赖清单
+# 安装方式：pip install -r requirements.txt
+
+# ── 核心依赖 ──
+openai>=1.0.0          # LLM API 调用（OpenAI 兼容接口）
+pyyaml>=6.0            # 配置文件解析
+
+# ── 数据处理 ──
+# 以下包在大多数环境中已预装，按需安装
+# pandas>=2.0.0        # 数据分析（可选，用于高级统计）
+# numpy>=1.24.0        # 数值计算（可选）
+
+# ── 开发与测试 ──
+# pytest>=7.0.0        # 单元测试（可选）
+# tqdm>=4.65.0         # 进度条（可选）
+
+# ── 注意 ──
+# Python 标准库已包含：json, csv, re, hashlib, logging,
+#   pathlib, dataclasses, collections, asyncio, concurrent.futures
+# 无需额外安装

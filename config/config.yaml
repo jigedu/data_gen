@@ -1,0 +1,167 @@
+# =============================================================================
+# agent_router_sft 主配置文件
+# =============================================================================
+# 用途：控制整个数据生成、清洗、合并与导出流程的所有参数
+# 修改此文件后，重新运行 python run.py 即可生效
+# =============================================================================
+
+# ─────────────────────────── LLM 客户端配置 ───────────────────────────
+llm:
+  # 模型名称，支持 OpenAI 兼容接口的任意模型
+  # 推荐：gpt-4o-mini（成本低）、gpt-4o（质量高）、Qwen-72B（本地部署）
+  model: "gpt-4o-mini"
+
+  # API 基础 URL（OpenAI 兼容接口）
+  # 留空则使用环境变量 OPENAI_BASE_URL 或默认 OpenAI 地址
+  base_url: ""
+
+  # API 密钥（优先使用环境变量 OPENAI_API_KEY）
+  api_key: ""
+
+  # 生成参数
+  temperature: 0.9        # 温度（越高越多样，建议 0.8-1.0）
+  max_tokens: 512         # 单次最大生成 token 数
+  top_p: 0.95             # nucleus sampling
+
+  # 并发与重试
+  max_workers: 5          # 并发请求数（注意 API 速率限制）
+  max_retries: 3          # 最大重试次数
+  retry_delay: 2.0        # 重试间隔（秒）
+  request_timeout: 30     # 单次请求超时（秒）
+
+  # 干运行模式（不实际调用 API，用于测试流程）
+  dry_run: false
+
+
+# ─────────────────────────── 数据生成配置 ───────────────────────────
+generation:
+  # 随机种子（保证可复现性）
+  seed: 42
+
+  # ── 阶段一：冷启动 ──
+  stage1:
+    enabled: true
+    # 每个智能体生成的样本数（目标：100-200条）
+    samples_per_agent: 150
+    # 每次 LLM 调用生成的样本数
+    batch_size: 5
+    # 全部为简单样本
+    simple_ratio: 1.0
+    # 是否断点续传
+    resume: true
+
+  # ── 阶段二：生产泛化 ──
+  stage2:
+    enabled: true
+    # 每个智能体生成的样本数（目标：500-1000条）
+    samples_per_agent: 700
+    batch_size: 10
+    # 简单样本比例（40%简单 + 60%复杂）
+    simple_ratio: 0.40
+    resume: true
+
+  # ── 阶段三：困难负样本 ──
+  stage3:
+    enabled: true
+    # 每个混淆对生成的样本数（双向合计）
+    samples_per_pair: 50
+    batch_size: 5
+    # 关键词重叠率阈值（超过此值认为存在混淆风险）
+    keyword_overlap_threshold: 0.3
+    # 每个智能体最多关联的混淆对数量
+    max_pairs_per_agent: 5
+    resume: true
+
+
+# ─────────────────────────── 数据清洗配置 ───────────────────────────
+cleaning:
+  # 问题长度限制
+  min_question_length: 8
+  max_question_length: 500
+
+  # 标签泄露检测
+  check_label_leakage: true
+
+  # 语言质量
+  min_chinese_ratio: 0.3
+  max_repeat_char_ratio: 0.3
+
+  # 去重方法: "exact" | "ngram" | "both"
+  dedup_method: "both"
+  ngram_similarity_threshold: 0.85
+  ngram_size: 3
+
+  # 质量分数阈值（低于此值的样本被丢弃）
+  min_quality_score: 0.55
+
+  # 每个智能体的最大样本数（None 表示不限制）
+  max_samples_per_agent: null
+
+
+# ─────────────────────────── 数据集合并配置 ───────────────────────────
+merging:
+  # 各阶段样本比例
+  stage1_weight: 0.15
+  stage2_weight: 0.70
+  stage3_weight: 0.15
+
+  # 最终每个智能体的目标样本数
+  target_per_agent: 1000
+
+  # 全局最大样本数（null 表示不限制）
+  max_total: null
+
+  # 是否进行全局去重
+  global_dedup: true
+
+  # 随机种子
+  seed: 42
+
+
+# ─────────────────────────── 数据集划分配置 ───────────────────────────
+splitting:
+  train_ratio: 0.80
+  val_ratio: 0.10
+  test_ratio: 0.10
+  # 是否按类别分层采样（推荐 true）
+  stratified: true
+  # 是否同时导出多种格式（alpaca、sharegpt、openai）
+  export_formats: true
+
+
+# ─────────────────────────── 输出路径配置 ───────────────────────────
+output:
+  # 根输出目录
+  root_dir: "./output"
+
+  # 各阶段原始生成数据目录
+  stage1_raw_dir: "./output/raw/stage1"
+  stage2_raw_dir: "./output/raw/stage2"
+  stage3_raw_dir: "./output/raw/stage3"
+
+  # 清洗后数据目录
+  stage1_clean_dir: "./output/clean/stage1"
+  stage2_clean_dir: "./output/clean/stage2"
+  stage3_clean_dir: "./output/clean/stage3"
+
+  # 合并后完整数据集
+  merged_dataset: "./output/merged/full_dataset.jsonl"
+
+  # 划分后数据集目录
+  split_dir: "./output/split"
+
+  # 最终导出目录（多格式）
+  export_dir: "./output/export"
+
+  # 报告目录
+  report_dir: "./output/reports"
+
+
+# ─────────────────────────── 日志配置 ───────────────────────────
+logging:
+  # 日志级别: DEBUG | INFO | WARNING | ERROR
+  level: "INFO"
+  # 日志文件路径（null 表示只输出到控制台）
+  file: "./output/logs/pipeline.log"
+  # 是否显示进度条
+  show_progress: true
